@@ -1,0 +1,225 @@
+;*************************************************************************
+; Sensor: HM5150
+; I2C ID: 24
+; Resolution: 2064x2064
+; Lens: 
+; Flicker:0x115@60Hz,0x14C@50Hz
+; Frequency:
+; Description: 
+;   
+;   
+;
+; Note:
+; 
+; $Revision: 1189 $
+; $Date:: 2016-07-18#$
+;*************************************************************************
+//------------------------------------------------------------------------
+// Dothinkey System Initial
+//------------------------------------------------------------------------
+
+[DataBase]
+DBName=HM5150
+
+[Vendor]
+VendorName=HimaxImaging
+
+
+[Sensor]
+SensorName=HM5150
+width=2888
+height=1808
+type=0
+port=0
+pin=3
+mode=3
+SlaveID=0x24
+FlagReg=0x00
+FlagMask=0xff
+FlagData=0x43
+FlagReg1=0x01
+FlagMask1=0xff
+FlagData1=0x05
+outformat=3
+mclk=9
+avdd=0
+dovdd=2
+dvdd=2
+
+Ext0=0
+Ext1=0
+Ext2=0
+
+
+
+[ParaList]
+
+
+                                        
+[SleepParaList]
+
+[AF_InitParaList]
+
+[AF_AutoParaList]
+
+[AF_FarParaList]
+
+[AF_NearParaList]
+
+[Exposure_ParaList]
+
+[Gain_ParaList]
+[power]
+MCLK=24000
+DOVDD=1800
+AVDD=2800
+DVDD=1200
+VPP=1800
+AFVCC=1800
+
+
+//------------------------------------------------------------------------
+// HUB System Initial
+//------------------------------------------------------------------------
+W 20 8A04 01 2 1
+W 20 8A00 22 2 1
+W 20 8A01 00 2 1
+W 20 8A02 01 2 1
+W 20 0035 93 2 1 ; [3]&[1] hub616 20bits in, [5:4]=1 mclk=48/2=24mhz
+W 20 0036 00 2 1
+W 20 0011 09 2 1
+W 20 0012 B6 2 1
+W 20 0014 08 2 1
+W 20 0015 98 2 1
+W 20 0130 16 2 1 ; 3m soc, signal buffer control
+W 20 0100 04 2 1 ; [6] hub616 20bits in
+W 20 0150 00 2 1 ;
+S 100
+W 20 0150 04 2 1 ; [2] XSHUTDOWN
+S 100
+W 20 0100 05 2 1 ; [6] 0:hub616 10bits in, [0] XSLEEP
+
+//---------------------------------------------------
+// Initial
+//---------------------------------------------------
+W 24 0103 00 2 1 ; software reset-> was 0x22
+S 100
+
+//---------------------------------------------------
+// Analog
+//---------------------------------------------------
+L ..\..\common\analog\H5_analog_setting_60fps_2lane_chip02_11222024_v00.txt
+
+//---------------------------------------------------
+// PLL (clk_isp = 75MHz, clk_pkt = 100MHz) 
+//---------------------------------------------------
+W 24 0300 3C 2 1 ; adc pll post div
+W 24 0302 0B 2 1 ; [4:0] pll_pre_divider
+W 24 0303 04 2 1 ; clk_asic_div 0->/2  1->/3  2->/4  3->/5  4->/6  5->/7  6->/8  7->10
+W 24 030F 04 2 1 ;
+
+// clk_adc = [iref \ (pll_pre_div[4:0]+1)] * (pll_post_div[7:0]+1) * 2
+// clk_asic = clk_adc / (clk_asic_div[2:0])
+
+//---------------------------------------------------
+// Digital function
+//---------------------------------------------------
+L ..\..\common\MIPI\MIPI_timing_912Mhz.txt
+L ..\..\common\H5_digital_setting.txt
+
+L .\setM_MIPI_2888x1808_HDR_456MHz.txt
+
+W 24 3001 00 2 1 ;	// HDR_long_short_distance (H)
+W 24 3002 88 2 1 ;	// HDR_long_short_distance (L)
+//W 24 3003 02 2 1 ;	// HDR_adjustment
+
+//---------------------------------------------------
+// MIPI TX 
+//---------------------------------------------------
+W 24 2821 8E 2 1 ; CC0 : Clock lane on always.              (9E) / woLSLE (8E) 
+                 ; GC2 : Clock lane on while frame active.  (DE) / woLSLE (CE) 
+                 ; GC1 : Clock lane on while packet issued. (BE) / woLSLE (AE) 
+                 ; GC3 : Clock lane on while line  active.  (FE) / woLSLE (EE)
+W 24 2800 01 2 1
+
+//Frame Gated
+;W 24 2821 CE 2 1 ; CC0 : Clock lane on always.              (9E) / woLSLE (8E) 
+                 ; GC2 : Clock lane on while frame active.  (DE) / woLSLE (CE) 
+                 ; GC1 : Clock lane on while packet issued. (BE) / woLSLE (AE) 
+                 ; GC3 : Clock lane on while line  active.  (FE) / woLSLE (EE)
+;W 24 2800 05 2 1
+
+//Line Gated
+;W 24 2821 EE 2 1 ; CC0 : Clock lane on always.              (9E) / woLSLE (8E) 
+                 ; GC2 : Clock lane on while frame active.  (DE) / woLSLE (CE) 
+                 ; GC1 : Clock lane on while packet issued. (BE) / woLSLE (AE) 
+                 ; GC3 : Clock lane on while line  active.  (FE) / woLSLE (EE)
+;W 24 2800 09 2 1
+
+//-----------------------------------------------------------
+// clk_mipi = {[iref / (mipi_pll_pre_div[4:0]+1)] * (mipi_pll_post_div[6:0]+1) * (mipi_pll_sel_post_div+1)} / (mipi_clk_div)
+//-----------------------------------------------------------
+W 24 2839 38 2 1 ; mipi pll post div
+W 24 283A 0B 2 1 ;
+W 24 283B 09 2 1 ;
+W 24 2842 0C 2 1 ;		///	[0] sscg_en [1] test_1g_mipi [2] mipi_pll_sel_post_div [3] mipi_pll_sel
+W 24 2848 31 2 1 ;
+//W 28 3048 00 2 1 ;  // should be removed in ECO
+
+//---------------------------------------------------
+// MIPI RX (ST-RX)
+//---------------------------------------------------
+L ..\..\common\HIIRX\HITC01_common_configuration.txt
+W 68 0C24 27 2 1 ; [5] : LSLE_En, [3] : Dual Pipe Output Enable (20Bits)
+L ..\..\common\STRX\STRX_common_configuration_2lane.txt
+
+W 24 2823 03 2 1 ; // LANE_NUM		1: 1 lane, 3: 2 lane
+
+W 24 281C 00 2 1; // fill level H
+W 24 281D 00 2 1; // fill level L
+
+W 24 2815 0E 2 1;// word Count H
+W 24 2816 1A 2 1;// word Count L //2888(B48)/3610(E1A)
+
+W 24 2817 0B 2 1;// TX DPHY CFG [0]: enable_ctx_r [2:1]: dphy_mode_r [3]: dphy_hs_cal_enabled_r*
+W 24 2818 7F 2 1;// MIPI SRAM DEPTH MAX = 7F (Default = 7F) / 7F : 127 ; 3F : 63 ; 1F : 31 
+
+W 24 0202 01 2 1;
+W 24 0203 CF 2 1;
+W 24 0205 00 2 1;
+W 24 0206 60 2 1;
+
+//---------------------------------------------------
+// Extra
+//---------------------------------------------------
+;W 24 0601 05 2 1
+W 24 2839 52 2 1
+W 24 0601 00 2 1
+W 24 284A 00 2 1
+W 24 284D 90 2 1
+W 24 2850 00 2 1
+W 24 284D 00 2 1
+W 24 282D 92 2 1
+W 24 315A 00 2 1	//Old 01 New 00
+W 24 315B 8C 2 1
+
+W 24 2839 71 2 1
+W 24 2848 D1 2 1
+
+;W 24 2818 3F 2 1
+;W 24 2804 05 2 1
+;W 24 2807 0F 2 1
+;W 24 2808 0F 2 1
+
+
+W 24 3000 00 2 1
+W 24 0101 03 2 1
+//---------------------------------------------------
+// CMU update
+//---------------------------------------------------
+W 24 0104 01 2 1 ; was 0100
+
+//---------------------------------------------------
+// Turn on rolling shutter
+//---------------------------------------------------
+W 24 0100 01 2 1 ; mode_select -> 00 : SW standby   01 : SWcstream   02 : SWastream   03 : SWbstream  
